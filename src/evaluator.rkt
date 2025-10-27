@@ -1,5 +1,9 @@
 #lang racket
 
+#| Closures:
+  A closure packages an expression that has not yet been evaluated
+  with the run-time environment in which the expression was created
+|#
 (struct CLOS (env var body) #:transparent)
 
 (define (extend ρ x v)
