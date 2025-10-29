@@ -1,12 +1,10 @@
 #lang typed/racket
 
-(: add-* (-> Symbol Symbol))
+(: add-* (-> String String))
 (define (add-* x)
-  (string->symbol
-   (string-append (symbol->string x)
-                  "*")))
+   (string-append x) "*")
 
-(: freshen (-> (List Symbol) Symbol Symbol))
+(: freshen (-> (List String) String String))
 (define (freshen used x)
   (if (memv x used)
       (freshen used (add-* x))

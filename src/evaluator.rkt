@@ -1,9 +1,11 @@
 #lang typed/racket
 
+(require "fresh.rkt")
+
 #| Essential Types: |#
 
 ;; Environment
-(define-type Env (Listof (Pair String CLOS)))
+(define-type Env (Listof (Pair String Value)))
 
 ;; Expression
 (define-type Expr
@@ -11,6 +13,13 @@
     Var
     Abs
     App))
+
+;; Value
+(define-type Value
+  (U
+    CLOS
+    N-var
+    N-ap))
 
 ; Struct for variable
 (struct Var 
@@ -26,6 +35,15 @@
   ([func : Expr]
    [arg : Expr]))
 
+; Neutral variable
+(struct N-var
+  ([name : String]))
+
+; Neutral application
+(struct N-ap
+  ([rator : Any]
+   [rand : Value]))
+
 #| Closures:
   A closure packages an expression that has not yet been evaluated
   with the run-time environment in which the expression was created
@@ -33,7 +51,7 @@
 (struct CLOS ([env : Env] [var : String] [body : Expr]) #:transparent)
 
 ;; Extends an environment
-(: extend (-> Env String CLOS Env))
+(: extend (-> Env String Value Env))
 (define (extend ρ x v)
   (cons (cons x v) ρ))
 
@@ -49,8 +67,7 @@
 #| Evaluation:
   Evaluates a expression given a environment ρ, and expression e.
 |#
-
-(: evaluate (-> Env Expr CLOS))
+(: evaluate (-> Env Expr Value))
 (define (evaluate ρ e)
   (match e
     [(Var x)
@@ -64,14 +81,33 @@
     [(App rator rand)
      (application (evaluate ρ rator) (evaluate ρ rand))]))
 
+#| Reading back:
+  Convert the values back into their representations as syntax.
+|#
+(: read-back (-> (List String) Value Expr))
+(define (read-back used-names v)
+  (match v
+    [(CLOS ρ x body)
+     (let* ((y (freshen used-names x))
+            (neutral-y (N-var y)))
+       (parse `(λ (,y)
+          ,(read-back (cons y used-names)
+                      (application (extend ρ x neutral-y) body)))))]
+    [(N-var x) x]
+    [(N-ap rator rand)
+     `(,(read-back used-names rator) ,(read-back used-names rand))]))
+
 #| Function Application:
   Apply a function value to an argument. 
 |#
-(: application (-> CLOS CLOS CLOS))
-(define (application clos arg)
-  (match clos
+(: application (-> Value Value Value))
+(define (application fun arg)
+  (match fun
     [(CLOS ρ x b)
-     (evaluate (extend ρ x arg) b)]))
+     (evaluate (extend ρ x arg) b)]
+    ; If the argument is neutral construct an even bigger neutral expr.
+    [neutral-fun
+     (N-ap fun arg)]))
 
 ;; Definitions
 (: run-program (-> Env (Listof Expr) Void))
