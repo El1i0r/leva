@@ -1,67 +1,7 @@
 #lang typed/racket
 
 (require "fresh.rkt")
-
-#| Essential Types: |#
-
-;; Environment
-(define-type Env (Listof (Pair String Value)))
-
-;; Expression
-(define-type Expr
-  (U
-    Var
-    Abs
-    App
-    Value))
-
-;; Value
-;; TODO: Apparently in Pie, values are expressions which
-;; is constructed by a constructor. Sounds odd and so this
-;; means this Union type here is just a hacky way to avoid
-;; type errors. I don't know what I'm doing in other words
-(define-type Value
-  (U
-    CLOS
-    Expr
-    Env
-    N-var
-    N-ap))
-
-; Struct for variable
-(struct Var 
-  ([name : String]))
-
-; Struct for lambda abstraction (function)
-(struct Abs 
-  ([param : String]
-   [body : Expr]))
-
-; Struct for function application
-(struct App 
-  ([func : Expr]
-   [arg : Expr]))
-
-#| Neutrals:
-  Expressions which are not values and cannot *yet* be evaluated,
-  are called neutral.
-|#
-
-; Neutral variable
-(struct N-var
-  ([name : String]))
-
-; Neutral application
-(struct N-ap
-  ([rator : Value]
-   [rand : Value]))
-
-#| Closures:
-  A closure packages an expression that has not yet been evaluated
-  with the run-time environment in which the expression was created
-|#
-(struct CLOS ([env : Env] [var : String] [body : Expr]) #:transparent)
-
+(require "types.rkt")
 
 ;; Extends an environment
 (: extend (-> Env String Value Env))
@@ -145,4 +85,3 @@
 
 
 (provide (all-defined-out))
-(provide Value Expr Var Abs App N-var N-ap CLOS)
