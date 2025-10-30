@@ -46,13 +46,14 @@
   Expressions which are not values and cannot *yet* be evaluated,
   are called neutral.
 |#
+
 ; Neutral variable
 (struct N-var
   ([name : String]))
 
 ; Neutral application
 (struct N-ap
-  ([rator : Any]
+  ([rator : Value]
    [rand : Value]))
 
 #| Closures:
@@ -60,6 +61,7 @@
   with the run-time environment in which the expression was created
 |#
 (struct CLOS ([env : Env] [var : String] [body : Expr]) #:transparent)
+
 
 ;; Extends an environment
 (: extend (-> Env String Value Env))
@@ -74,6 +76,7 @@
     [(list 'λ (list (? symbol? x)) b) (Abs (symbol->string x) (parse b))]
     [`(,rator ,rand) (App (parse rator) (parse rand))]
     [other (error 'parse "Invalid expression: ~s:" other)]))
+
 
 #| Evaluation:
   Evaluates a expression given a environment ρ, and expression e.
@@ -91,6 +94,18 @@
      (CLOS ρ x b)]
     [(App rator rand)
      (application (evaluate ρ rator) (evaluate ρ rand))]))
+
+#| Function Application:
+  Apply a function value to an argument. 
+|#
+(: application (-> Value Value Value))
+(define (application fun arg)
+  (match fun
+    [(CLOS ρ x b)
+     (evaluate (extend ρ x arg) b)]
+    ; If the argument is neutral construct an even bigger neutral expr.
+    [neutral-fun
+     (N-ap fun arg)]))
 
 #| Reading back:
   Convert the values back into their representations as syntax.
@@ -115,26 +130,19 @@
 (define (norm ρ e)
   (read-back '() (evaluate ρ e)))
 
-#| Function Application:
-  Apply a function value to an argument. 
-|#
-(: application (-> Value Value Value))
-(define (application fun arg)
-  (match fun
-    [(CLOS ρ x b)
-     (evaluate (extend ρ x arg) b)]
-    ; If the argument is neutral construct an even bigger neutral expr.
-    [neutral-fun
-     (N-ap fun arg)]))
 
 ;; Definitions
-(: run-program (-> Env (Listof Expr) Void))
+(: run-program (-> Env (Listof Any) Void))
 (define (run-program ρ exprs)
   (match exprs
-    [(list) (void)]
-    [(list `(define ,(? symbol? x) ,e) rest ...)
+    ['() (void)]
+    [(cons `(define ,(? symbol? x) ,e) rest)
      (let ([v (evaluate ρ (parse e))])
        (run-program (extend ρ (symbol->string x) v) rest))]
-    [(list e rest ...)
+    [(cons e rest)
      (displayln (norm ρ (parse e)))
      (run-program ρ rest)]))
+
+
+(provide (all-defined-out))
+(provide Value Expr Var Abs App N-var N-ap CLOS)
