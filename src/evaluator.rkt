@@ -12,12 +12,19 @@
   (U
     Var
     Abs
-    App))
+    App
+    Value))
 
 ;; Value
+;; TODO: Apparently in Pie, values are expressions which
+;; is constructed by a constructor. Sounds odd and so this
+;; means this Union type here is just a hacky way to avoid
+;; type errors. I don't know what I'm doing in other words
 (define-type Value
   (U
     CLOS
+    Expr
+    Env
     N-var
     N-ap))
 
@@ -35,6 +42,10 @@
   ([func : Expr]
    [arg : Expr]))
 
+#| Neutrals:
+  Expressions which are not values and cannot *yet* be evaluated,
+  are called neutral.
+|#
 ; Neutral variable
 (struct N-var
   ([name : String]))
@@ -84,18 +95,25 @@
 #| Reading back:
   Convert the values back into their representations as syntax.
 |#
-(: read-back (-> (List String) Value Expr))
+(: read-back (-> (Listof String) Value Expr))
 (define (read-back used-names v)
   (match v
     [(CLOS ρ x body)
      (let* ((y (freshen used-names x))
             (neutral-y (N-var y)))
-       (parse `(λ (,y)
-          ,(read-back (cons y used-names)
-                      (application (extend ρ x neutral-y) body)))))]
-    [(N-var x) x]
+       (Abs y
+          (read-back (cons y used-names)
+                      (evaluate (extend ρ x neutral-y) body))))]
+    [(N-var x) (Var x)]
     [(N-ap rator rand)
-     `(,(read-back used-names rator) ,(read-back used-names rand))]))
+     (App (read-back used-names rator) (read-back used-names rand))]))
+
+#| Normalize:
+  Normalize an expression.
+|#
+(: norm (-> Env Expr Expr))
+(define (norm ρ e)
+  (read-back '() (evaluate ρ e)))
 
 #| Function Application:
   Apply a function value to an argument. 
@@ -113,10 +131,10 @@
 (: run-program (-> Env (Listof Expr) Void))
 (define (run-program ρ exprs)
   (match exprs
-    ['() (void)]
-    [(cons `(define ,x ,e) rest)
+    [(list) (void)]
+    [(list `(define ,(? symbol? x) ,e) rest ...)
      (let ([v (evaluate ρ (parse e))])
        (run-program (extend ρ (symbol->string x) v) rest))]
-    [(cons e rest)
-     (displayln (evaluate ρ (parse e)))
+    [(list e rest ...)
+     (displayln (norm ρ (parse e)))
      (run-program ρ rest)]))
