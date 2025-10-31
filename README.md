@@ -3,7 +3,7 @@ Leva is a implementation of Pie programming language from The Little Typer which
 It is mostly our playground for implementing Martin Lof Type Theory, and Calculus of Inductive Constructions.
 
 # Installation
-You must have `git` and `racket` installed on your system, after that clone this repository in some directory and finally run:
+You must have `git` and `racket` installed on your system, after that clone this repository in some directory and then finally run:
 
 ```bash
 racket src/main.rkt # which would start a REPL... probably
